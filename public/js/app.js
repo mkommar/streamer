@@ -24,25 +24,25 @@ var ws = new WebSocket('ws://' + window.location.hostname + ':4000');
 var context = new AudioContext();
 var bufferSize = 16384;
 
-var playBuffer = context.createBuffer(1, bufferSize, context.sampleRate);
-var playData = playBuffer.getChannelData(0);
-
-var playNode = context.createBufferSource();
-playNode.buffer = playBuffer;
-playNode.loop = true;
-playNode.start(0);
-
-playNode.connect(context.destination);
-
 var reader = new FileReader();
 reader.onload = function () {
   var buf = new Uint8Array(this.result);
   var decoded = Codec.decode(buf);
   var offset = decoded.length - bufferSize;
 
+  var audio = new Float32Array(bufferSize);
   for (var i = 0; i < bufferSize; i++) {
-    playData[i] = decoded[i + offset];
+    audio[i] = decoded[i + offset];
   }
+
+  window.playNode = context.createBufferSource();
+  var playBuffer = context.createBuffer(1, audio.length, context.sampleRate);
+  playBuffer.getChannelData(0).set(audio);
+
+  playNode.buffer = playBuffer;
+
+  playNode.connect(context.destination);
+  playNode.start(0);
 };
 
 ws.onmessage = function (msg) {
@@ -50,7 +50,7 @@ ws.onmessage = function (msg) {
 };
 
 navigator.getUserMedia({audio: true}, function (stream) {
-  var micNode = context.createMediaStreamSource(stream);
+  window.micNode = context.createMediaStreamSource(stream);
   var recNode = context.createScriptProcessor(bufferSize, 1, 1);
 
   micNode.connect(recNode);
